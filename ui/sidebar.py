@@ -55,12 +55,24 @@ def render_analysis_options():
         format_func=lambda x: {
             'full': 'Full Analysis',
             'quick': 'Quick Summary',
-            'specific': 'Specific Clauses'
+            'specific': 'Specific Clause'
         }[x],
         index=0
     )
     
-    return analysis_type
+    # If specific clause selected, show clause type dropdown
+    clause_type = None
+    if analysis_type == 'specific':
+        from config.settings import CLAUSE_TYPES
+        
+        clause_type = st.sidebar.selectbox(
+            "Select Clause Type",
+            options=CLAUSE_TYPES,
+            index=0,
+            help="Choose which type of clause to analyze in detail"
+        )
+    
+    return analysis_type, clause_type
 
 
 def render_comparison_mode():
@@ -93,7 +105,7 @@ def render_sidebar():
     render_settings_section()
     
     # Analysis options
-    analysis_type = render_analysis_options()
+    analysis_type, clause_type = render_analysis_options()
     
     # Comparison mode
     comparison_mode = render_comparison_mode()
@@ -104,6 +116,7 @@ def render_sidebar():
     return {
         'uploaded_file': None,  # Not used anymore - uploads in main area
         'analysis_type': analysis_type,
+        'clause_type': clause_type,
         'comparison_mode': comparison_mode
     }
 

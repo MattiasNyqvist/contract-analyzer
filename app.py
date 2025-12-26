@@ -17,11 +17,13 @@ from utils.session_manager import init_session, reset_analysis
 from ui.sidebar import render_sidebar, show_welcome
 from ui.results_display import show_analysis
 from ui.comparison_view import show_comparison_results
+from ui.clause_view import show_clause_analysis
 from modules.file_handler import save_uploaded_file
 from modules.text_extractor import extract_text, clean_text
 from modules.contract_analyzer import analyze_contract, get_quick_summary
 from modules.risk_detector import run_automated_risk_detection
 from modules.contract_comparator import compare_contracts
+from modules.clause_finder import analyze_specific_clause
 from modules.report_builder import generate_text_report, generate_html_report
 from utils.validators import validate_contract_text, validate_api_key
 
@@ -49,6 +51,7 @@ sidebar_options = render_sidebar()
 # Check if comparison mode is enabled
 comparison_mode = sidebar_options['comparison_mode']
 analysis_type = sidebar_options['analysis_type']
+clause_type = sidebar_options['clause_type']
 
 # Main content - File Upload
 st.markdown("---")
@@ -126,14 +129,12 @@ with st.spinner("Processing contract(s)..."):
     st.session_state.contract_filename = st.session_state.contract1_file.name
     st.session_state.contract_uploaded = True
     
+    # Show success messages
     if comparison_mode:
         col1_msg, col2_msg = st.columns(2)
+        col1_msg.success(f"✅ Contract 1: {len(contract1_text)} characters extracted")
     else:
-        col1_msg = st
-        col2_msg = None
-    
-    with col1_msg:
-        st.success(f"✅ Contract 1: {len(contract1_text)} characters extracted")
+        st.success(f"✅ Contract processed: {len(contract1_text)} characters extracted")
     
     # Process second contract if comparison mode
     if comparison_mode:
@@ -154,8 +155,7 @@ with st.spinner("Processing contract(s)..."):
         st.session_state.contract2_text = contract2_text
         st.session_state.contract2_filename = st.session_state.contract2_file.name
         
-        with col2_msg:
-            st.success(f"✅ Contract 2: {len(contract2_text)} characters extracted")
+        col2_msg.success(f"✅ Contract 2: {len(contract2_text)} characters extracted")
 
 # Analysis section
 st.markdown("---")
@@ -171,7 +171,12 @@ else:
     use_ai = True
 
 # Analyze button
-analyze_label = "🔍 Analyze Contract" if not comparison_mode else "🔍 Compare Contracts"
+if comparison_mode:
+    analyze_label = "🔍 Compare Contracts"
+elif analysis_type == 'specific':
+    analyze_label = f"🔍 Analyze {clause_type} Clause"
+else:
+    analyze_label = "🔍 Analyze Contract"
 
 if st.button(analyze_label, type="primary", use_container_width=True):
     with st.spinner("Analyzing contract(s)... This may take 30-60 seconds..."):
@@ -294,84 +299,105 @@ if st.button(analyze_label, type="primary", use_container_width=True):
                 
                 st.session_state.comparison_results = comparison
         
-        else:  # specific clauses
-            st.info("Specific clause analysis coming soon!")
-            st.stop()
+        else:  # specific clause analysis
+            if not clause_type:
+                st.error("Please select a clause type to analyze")
+                st.stop()
+            
+            # Analyze specific clause
+            clause_result = analyze_specific_clause(
+                st.session_state.contract_text,
+                clause_type,
+                api_key if use_ai else None,
+                st.session_state.language
+            )
+            
+            st.session_state.clause_results = clause_result
         
         st.session_state.analysis_complete = True
         st.success("✅ Analysis complete!")
 
 # Display results
-if st.session_state.get('analysis_complete') and st.session_state.get('analysis_results'):
+if st.session_state.get('analysis_complete'):
     st.markdown("---")
     
-    # If comparison mode, show comparison results
-    if comparison_mode and st.session_state.get('comparison_results'):
-        show_comparison_results(
-            st.session_state.comparison_results,
-            st.session_state.contract_filename,
-            st.session_state.contract2_filename
+    # Check what type of analysis was done
+    if analysis_type == 'specific' and st.session_state.get('clause_results'):
+        # Show clause analysis
+        show_clause_analysis(
+            st.session_state.clause_results,
+            clause_type
         )
         
-        # Show individual analyses in TABS instead of expanders
-        st.markdown("---")
-        st.subheader("Detailed Individual Analyses")
-        
-        tab1, tab2 = st.tabs([
-            f"📄 {st.session_state.contract_filename}",
-            f"📄 {st.session_state.contract2_filename}"
-        ])
-        
-        with tab1:
-            show_analysis(st.session_state.analysis_results)
-        
-        with tab2:
-            if st.session_state.get('analysis2_results'):
-                show_analysis(st.session_state.analysis2_results)
-    
-    else:
-        # Single contract analysis
-        show_analysis(st.session_state.analysis_results)
-    
-    # Export section
-    st.markdown("---")
-    st.subheader("Export Report")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Text report
-        text_report = generate_text_report(
-            st.session_state.analysis_results,
-            st.session_state.contract_filename
-        )
-        st.download_button(
-            label="📄 Download Text Report",
-            data=text_report,
-            file_name=f"analysis_{st.session_state.contract_filename}.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
-    
-    with col2:
-        # HTML report
-        html_report = generate_html_report(
-            st.session_state.analysis_results,
-            st.session_state.contract_filename
-        )
-        st.download_button(
-            label="🌐 Download HTML Report",
-            data=html_report,
-            file_name=f"analysis_{st.session_state.contract_filename}.html",
-            mime="text/html",
-            use_container_width=True
-        )
-    
-    with col3:
+    elif st.session_state.get('analysis_results'):
+        # If comparison mode, show comparison results
         if comparison_mode and st.session_state.get('comparison_results'):
-            st.info("Comparison report coming soon")
+            show_comparison_results(
+                st.session_state.comparison_results,
+                st.session_state.contract_filename,
+                st.session_state.contract2_filename
+            )
+            
+            # Show individual analyses in TABS
+            st.markdown("---")
+            st.subheader("Detailed Individual Analyses")
+            
+            tab1, tab2 = st.tabs([
+                f"📄 {st.session_state.contract_filename}",
+                f"📄 {st.session_state.contract2_filename}"
+            ])
+            
+            with tab1:
+                show_analysis(st.session_state.analysis_results)
+            
+            with tab2:
+                if st.session_state.get('analysis2_results'):
+                    show_analysis(st.session_state.analysis2_results)
+        
         else:
-            st.info("PDF export coming soon")
+            # Single contract analysis
+            show_analysis(st.session_state.analysis_results)
+    
+    # Export section (only for full analysis, not clause-specific)
+    if analysis_type != 'specific':
+        st.markdown("---")
+        st.subheader("Export Report")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Text report
+            text_report = generate_text_report(
+                st.session_state.analysis_results,
+                st.session_state.contract_filename
+            )
+            st.download_button(
+                label="📄 Download Text Report",
+                data=text_report,
+                file_name=f"analysis_{st.session_state.contract_filename}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        with col2:
+            # HTML report
+            html_report = generate_html_report(
+                st.session_state.analysis_results,
+                st.session_state.contract_filename
+            )
+            st.download_button(
+                label="🌐 Download HTML Report",
+                data=html_report,
+                file_name=f"analysis_{st.session_state.contract_filename}.html",
+                mime="text/html",
+                use_container_width=True
+            )
+        
+        with col3:
+            if comparison_mode and st.session_state.get('comparison_results'):
+                st.info("Comparison report coming soon")
+            else:
+                st.info("PDF export coming soon")
     
     # New analysis button
     st.markdown("---")
