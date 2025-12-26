@@ -1,0 +1,62 @@
+"""
+Session state management
+
+Copyright (c) 2025 Mattias Nyqvist
+Licensed under the MIT License
+"""
+
+import streamlit as st
+
+
+def init_session():
+    """Initialize all session state variables."""
+    
+    # File and contract data
+    if 'contract_uploaded' not in st.session_state:
+        st.session_state.contract_uploaded = False
+    
+    if 'contract_text' not in st.session_state:
+        st.session_state.contract_text = None
+    
+    if 'contract_filename' not in st.session_state:
+        st.session_state.contract_filename = None
+    
+    # Analysis results
+    if 'analysis_results' not in st.session_state:
+        st.session_state.analysis_results = None
+    
+    if 'analysis_complete' not in st.session_state:
+        st.session_state.analysis_complete = False
+    
+    # Comparison mode
+    if 'comparison_mode' not in st.session_state:
+        st.session_state.comparison_mode = False
+    
+    if 'contract2_text' not in st.session_state:
+        st.session_state.contract2_text = None
+    
+    if 'comparison_results' not in st.session_state:
+        st.session_state.comparison_results = None
+    
+    # User preferences
+    if 'language' not in st.session_state:
+        st.session_state.language = 'en'
+    
+    if 'number_format' not in st.session_state:
+        st.session_state.number_format = 'swedish'
+
+
+def reset_analysis():
+    """Reset analysis-related session state."""
+    st.session_state.contract_uploaded = False
+    st.session_state.contract_text = None
+    st.session_state.contract_filename = None
+    st.session_state.analysis_results = None
+    st.session_state.analysis_complete = False
+
+
+def reset_comparison():
+    """Reset comparison-related session state."""
+    st.session_state.comparison_mode = False
+    st.session_state.contract2_text = None
+    st.session_state.comparison_results = None
