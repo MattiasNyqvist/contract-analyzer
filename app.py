@@ -307,13 +307,20 @@ if st.session_state.get('analysis_complete') and st.session_state.get('analysis_
     
     # If comparison mode, show comparison results
     if comparison_mode and st.session_state.get('comparison_results'):
-        show_comparison_results(st.session_state.comparison_results)
+        show_comparison_results(
+            st.session_state.comparison_results,
+            st.session_state.contract_filename,
+            st.session_state.contract2_filename
+        )
         
         # Show individual analyses in TABS instead of expanders
         st.markdown("---")
         st.subheader("Detailed Individual Analyses")
         
-        tab1, tab2 = st.tabs(["📄 Contract 1", "📄 Contract 2"])
+        tab1, tab2 = st.tabs([
+            f"📄 {st.session_state.contract_filename}",
+            f"📄 {st.session_state.contract2_filename}"
+        ])
         
         with tab1:
             show_analysis(st.session_state.analysis_results)

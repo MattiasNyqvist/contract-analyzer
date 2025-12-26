@@ -159,15 +159,31 @@ def show_comparison_recommendation(comparison: Dict):
         st.markdown(recommendation)
 
 
-def show_comparison_results(comparison: Dict):
+def show_comparison_results(comparison: Dict, filename1: str = "Contract 1", filename2: str = "Contract 2"):
     """
     Display complete comparison results.
     
     Args:
         comparison: Comparison results dictionary
+        filename1: Name of first contract file
+        filename2: Name of second contract file
     """
     # Summary metrics
-    show_comparison_summary(comparison)
+    st.markdown("## Contract Comparison Summary")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(f"### 📄 {filename1}")
+        st.metric("Overall Risk", comparison.get('contract1_risk', 'UNKNOWN'))
+        st.metric("Risks Identified", comparison.get('contract1_risk_count', 0))
+        st.metric("Missing Clauses", comparison.get('contract1_missing_count', 0))
+    
+    with col2:
+        st.markdown(f"### 📄 {filename2}")
+        st.metric("Overall Risk", comparison.get('contract2_risk', 'UNKNOWN'))
+        st.metric("Risks Identified", comparison.get('contract2_risk_count', 0))
+        st.metric("Missing Clauses", comparison.get('contract2_missing_count', 0))
     
     st.markdown("---")
     
@@ -188,7 +204,26 @@ def show_comparison_results(comparison: Dict):
                 st.markdown(comparison['full_analysis'])
     
     with tab2:
-        show_unique_clauses(comparison)
+        # Update headers with filenames
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown(f"### 📄 Only in {filename1}")
+            unique_to_1 = comparison.get('unique_to_contract2', [])  # These are missing from contract1
+            if unique_to_1:
+                for item in unique_to_1:
+                    st.markdown(f"- {item}")
+            else:
+                st.info("No unique clauses")
+        
+        with col2:
+            st.markdown(f"### 📄 Only in {filename2}")
+            unique_to_2 = comparison.get('unique_to_contract1', [])  # These are missing from contract2
+            if unique_to_2:
+                for item in unique_to_2:
+                    st.markdown(f"- {item}")
+            else:
+                st.info("No unique clauses")
     
     with tab3:
         show_comparison_recommendation(comparison)
