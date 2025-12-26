@@ -6,21 +6,13 @@ Licensed under the MIT License
 """
 
 import streamlit as st
-from modules.file_handler import render_file_uploader
 from version import __version__, __author__, __license__
 
 
 def render_file_upload_section():
-    """Render file upload section in sidebar."""
-    st.sidebar.header("Upload Contract")
-    
-    uploaded_file = render_file_uploader()
-    
-    if uploaded_file is not None:
-        st.sidebar.success(f"Loaded: {uploaded_file.name}")
-        return uploaded_file
-    
-    return None
+    """Render file upload section in sidebar - NOW REMOVED."""
+    # File upload moved to main area
+    pass
 
 
 def render_settings_section():
@@ -79,7 +71,7 @@ def render_comparison_mode():
     comparison_enabled = st.sidebar.checkbox(
         "Compare Two Contracts",
         value=st.session_state.get('comparison_mode', False),
-        help="Upload a second contract to compare"
+        help="Enable to compare two contracts side-by-side"
     )
     
     st.session_state.comparison_mode = comparison_enabled
@@ -97,9 +89,6 @@ def render_footer():
 
 def render_sidebar():
     """Render complete sidebar."""
-    # File upload
-    uploaded_file = render_file_upload_section()
-    
     # Settings
     render_settings_section()
     
@@ -113,7 +102,7 @@ def render_sidebar():
     render_footer()
     
     return {
-        'uploaded_file': uploaded_file,
+        'uploaded_file': None,  # Not used anymore - uploads in main area
         'analysis_type': analysis_type,
         'comparison_mode': comparison_mode
     }

@@ -16,10 +16,12 @@ from config.settings import APP_TITLE, APP_ICON, APP_DESCRIPTION
 from utils.session_manager import init_session, reset_analysis
 from ui.sidebar import render_sidebar, show_welcome
 from ui.results_display import show_analysis
+from ui.comparison_view import show_comparison_results
 from modules.file_handler import save_uploaded_file
 from modules.text_extractor import extract_text, clean_text
 from modules.contract_analyzer import analyze_contract, get_quick_summary
 from modules.risk_detector import run_automated_risk_detection
+from modules.contract_comparator import compare_contracts
 from modules.report_builder import generate_text_report, generate_html_report
 from utils.validators import validate_contract_text, validate_api_key
 
@@ -44,43 +46,116 @@ st.markdown(APP_DESCRIPTION)
 # Render sidebar and get options
 sidebar_options = render_sidebar()
 
-# Main content
-if sidebar_options['uploaded_file'] is None:
-    # Show welcome screen
-    show_welcome()
-    st.stop()
-
-# Process uploaded file
-uploaded_file = sidebar_options['uploaded_file']
+# Check if comparison mode is enabled
+comparison_mode = sidebar_options['comparison_mode']
 analysis_type = sidebar_options['analysis_type']
 
-# Save file
-with st.spinner("Processing contract..."):
-    file_path = save_uploaded_file(uploaded_file)
+# Main content - File Upload
+st.markdown("---")
+
+if comparison_mode:
+    st.subheader("📊 Upload Contracts for Comparison")
     
-    # Extract text
-    contract_text, error = extract_text(file_path)
+    col1, col2 = st.columns(2)
     
-    if error:
-        st.error(f"Error extracting text: {error}")
-        st.stop()
+    with col1:
+        st.markdown("### 📄 Contract 1")
+        uploaded_file1 = st.file_uploader(
+            "First Contract",
+            type=['pdf', 'docx', 'doc'],
+            help="Upload first contract",
+            key="contract1_uploader"
+        )
     
-    # Clean text
-    contract_text = clean_text(contract_text)
+    with col2:
+        st.markdown("### 📄 Contract 2")
+        uploaded_file2 = st.file_uploader(
+            "Second Contract",
+            type=['pdf', 'docx', 'doc'],
+            help="Upload second contract to compare",
+            key="contract2_uploader"
+        )
     
-    # Validate
-    is_valid, validation_error = validate_contract_text(contract_text)
-    
-    if not is_valid:
-        st.error(validation_error)
+    # Check if both uploaded
+    if uploaded_file1 is None or uploaded_file2 is None:
+        st.info("👆 Please upload both contracts to enable comparison")
+        show_welcome()
         st.stop()
     
     # Store in session
-    st.session_state.contract_text = contract_text
-    st.session_state.contract_filename = uploaded_file.name
-    st.session_state.contract_uploaded = True
+    st.session_state.contract1_file = uploaded_file1
+    st.session_state.contract2_file = uploaded_file2
 
-st.success(f"Contract processed: {len(contract_text)} characters extracted")
+else:
+    # Single contract mode
+    st.subheader("📄 Upload Contract")
+    
+    uploaded_file = st.file_uploader(
+        "Contract Document",
+        type=['pdf', 'docx', 'doc'],
+        help="Upload PDF or DOCX contract",
+        key="single_contract_uploader"
+    )
+    
+    if uploaded_file is None:
+        show_welcome()
+        st.stop()
+    
+    st.session_state.contract1_file = uploaded_file
+
+# Process uploaded file(s)
+st.markdown("---")
+
+with st.spinner("Processing contract(s)..."):
+    # Process first contract
+    file_path1 = save_uploaded_file(st.session_state.contract1_file)
+    contract1_text, error1 = extract_text(file_path1)
+    
+    if error1:
+        st.error(f"Error extracting Contract 1: {error1}")
+        st.stop()
+    
+    contract1_text = clean_text(contract1_text)
+    is_valid1, validation_error1 = validate_contract_text(contract1_text)
+    
+    if not is_valid1:
+        st.error(f"Contract 1: {validation_error1}")
+        st.stop()
+    
+    st.session_state.contract_text = contract1_text
+    st.session_state.contract_filename = st.session_state.contract1_file.name
+    st.session_state.contract_uploaded = True
+    
+    if comparison_mode:
+        col1_msg, col2_msg = st.columns(2)
+    else:
+        col1_msg = st
+        col2_msg = None
+    
+    with col1_msg:
+        st.success(f"✅ Contract 1: {len(contract1_text)} characters extracted")
+    
+    # Process second contract if comparison mode
+    if comparison_mode:
+        file_path2 = save_uploaded_file(st.session_state.contract2_file)
+        contract2_text, error2 = extract_text(file_path2)
+        
+        if error2:
+            st.error(f"Error extracting Contract 2: {error2}")
+            st.stop()
+        
+        contract2_text = clean_text(contract2_text)
+        is_valid2, validation_error2 = validate_contract_text(contract2_text)
+        
+        if not is_valid2:
+            st.error(f"Contract 2: {validation_error2}")
+            st.stop()
+        
+        st.session_state.contract2_text = contract2_text
+        st.session_state.contract2_filename = st.session_state.contract2_file.name
+        
+        with col2_msg:
+            st.success(f"✅ Contract 2: {len(contract2_text)} characters extracted")
 
 # Analysis section
 st.markdown("---")
@@ -96,8 +171,10 @@ else:
     use_ai = True
 
 # Analyze button
-if st.button("🔍 Analyze Contract", type="primary", use_container_width=True):
-    with st.spinner("Analyzing contract... This may take 30-60 seconds..."):
+analyze_label = "🔍 Analyze Contract" if not comparison_mode else "🔍 Compare Contracts"
+
+if st.button(analyze_label, type="primary", use_container_width=True):
+    with st.spinner("Analyzing contract(s)... This may take 30-60 seconds..."):
         
         if analysis_type == 'quick':
             # Quick summary only
@@ -116,7 +193,7 @@ if st.button("🔍 Analyze Contract", type="primary", use_container_width=True):
                 st.stop()
         
         elif analysis_type == 'full':
-            # Full AI analysis
+            # Analyze first contract
             if use_ai:
                 analysis = analyze_contract(
                     st.session_state.contract_text,
@@ -159,6 +236,63 @@ if st.button("🔍 Analyze Contract", type="primary", use_container_width=True):
                     'key_terms': [],
                     'recommendations': analysis.get('recommendations', [])
                 }
+            
+            # If comparison mode, analyze second contract
+            if comparison_mode and st.session_state.get('contract2_text'):
+                st.info("Analyzing second contract...")
+                
+                if use_ai:
+                    analysis2 = analyze_contract(
+                        st.session_state.contract2_text,
+                        api_key,
+                        st.session_state.language
+                    )
+                    
+                    if analysis2:
+                        automated2 = run_automated_risk_detection(st.session_state.contract2_text)
+                        
+                        if automated2['risks']:
+                            analysis2['risks'].extend(automated2['risks'])
+                        if automated2['missing_clauses']:
+                            for clause in automated2['missing_clauses']:
+                                if clause not in analysis2.get('missing_clauses', []):
+                                    analysis2.setdefault('missing_clauses', []).append(clause)
+                        
+                        if len(analysis2.get('recommendations', [])) < 3:
+                            auto_recs2 = automated2.get('recommendations', [])
+                            for rec in auto_recs2:
+                                if rec not in analysis2.get('recommendations', []):
+                                    analysis2.setdefault('recommendations', []).append(rec)
+                        
+                        st.session_state.analysis2_results = analysis2
+                    else:
+                        st.error("Second contract analysis failed.")
+                        st.stop()
+                else:
+                    automated2 = run_automated_risk_detection(st.session_state.contract2_text)
+                    st.session_state.analysis2_results = {
+                        'summary': 'Automated rule-based analysis',
+                        'overall_risk': automated2['overall_risk'],
+                        'risks': automated2['risks'],
+                        'red_flags': [],
+                        'missing_clauses': automated2['missing_clauses'],
+                        'key_terms': [],
+                        'recommendations': automated2.get('recommendations', [])
+                    }
+                
+                # Compare contracts
+                st.info("Comparing contracts...")
+                
+                comparison = compare_contracts(
+                    st.session_state.contract_text,
+                    st.session_state.contract2_text,
+                    st.session_state.analysis_results,
+                    st.session_state.analysis2_results,
+                    api_key,
+                    st.session_state.language
+                )
+                
+                st.session_state.comparison_results = comparison
         
         else:  # specific clauses
             st.info("Specific clause analysis coming soon!")
@@ -170,7 +304,27 @@ if st.button("🔍 Analyze Contract", type="primary", use_container_width=True):
 # Display results
 if st.session_state.get('analysis_complete') and st.session_state.get('analysis_results'):
     st.markdown("---")
-    show_analysis(st.session_state.analysis_results)
+    
+    # If comparison mode, show comparison results
+    if comparison_mode and st.session_state.get('comparison_results'):
+        show_comparison_results(st.session_state.comparison_results)
+        
+        # Show individual analyses in TABS instead of expanders
+        st.markdown("---")
+        st.subheader("Detailed Individual Analyses")
+        
+        tab1, tab2 = st.tabs(["📄 Contract 1", "📄 Contract 2"])
+        
+        with tab1:
+            show_analysis(st.session_state.analysis_results)
+        
+        with tab2:
+            if st.session_state.get('analysis2_results'):
+                show_analysis(st.session_state.analysis2_results)
+    
+    else:
+        # Single contract analysis
+        show_analysis(st.session_state.analysis_results)
     
     # Export section
     st.markdown("---")
@@ -207,7 +361,10 @@ if st.session_state.get('analysis_complete') and st.session_state.get('analysis_
         )
     
     with col3:
-        st.info("PDF export coming soon")
+        if comparison_mode and st.session_state.get('comparison_results'):
+            st.info("Comparison report coming soon")
+        else:
+            st.info("PDF export coming soon")
     
     # New analysis button
     st.markdown("---")
