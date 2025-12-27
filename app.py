@@ -48,16 +48,25 @@ st.markdown(APP_DESCRIPTION)
 # Render sidebar and get options
 sidebar_options = render_sidebar()
 
-# Check if comparison mode is enabled
-comparison_mode = sidebar_options['comparison_mode']
-analysis_type = sidebar_options['analysis_type']
+# Get mode and options
+mode = sidebar_options['mode']
+analysis_detail = sidebar_options['analysis_detail']
 clause_type = sidebar_options['clause_type']
 
-# Main content - File Upload
+# Map mode to internal variables for backwards compatibility
+comparison_mode = (mode == 'comparison')
+if mode == 'single':
+    analysis_type = analysis_detail if analysis_detail else 'full'
+elif mode == 'clause':
+    analysis_type = 'specific'
+else:  # comparison
+    analysis_type = 'full'
+
+# Main content - File Upload based on mode
 st.markdown("---")
 
-if comparison_mode:
-    st.subheader("📊 Upload Contracts for Comparison")
+if mode == 'comparison':
+    st.subheader("📊 Upload Two Contracts to Compare")
     
     col1, col2 = st.columns(2)
     
@@ -90,8 +99,11 @@ if comparison_mode:
     st.session_state.contract2_file = uploaded_file2
 
 else:
-    # Single contract mode
-    st.subheader("📄 Upload Contract")
+    # Single contract mode (for both 'single' and 'clause' modes)
+    if mode == 'single':
+        st.subheader("📄 Upload Contract for Analysis")
+    else:  # clause mode
+        st.subheader(f"🔍 Upload Contract for {clause_type} Clause Analysis")
     
     uploaded_file = st.file_uploader(
         "Contract Document",
@@ -170,13 +182,15 @@ if not api_key:
 else:
     use_ai = True
 
-# Analyze button
-if comparison_mode:
+# Analyze button - mode-aware label
+if mode == 'comparison':
     analyze_label = "🔍 Compare Contracts"
-elif analysis_type == 'specific':
+elif mode == 'clause':
     analyze_label = f"🔍 Analyze {clause_type} Clause"
+elif analysis_detail == 'quick':
+    analyze_label = "⚡ Quick Summary"
 else:
-    analyze_label = "🔍 Analyze Contract"
+    analyze_label = "🔍 Full Analysis"
 
 if st.button(analyze_label, type="primary", use_container_width=True):
     with st.spinner("Analyzing contract(s)... This may take 30-60 seconds..."):
@@ -203,7 +217,7 @@ if st.button(analyze_label, type="primary", use_container_width=True):
                 analysis = analyze_contract(
                     st.session_state.contract_text,
                     api_key,
-                    st.session_state.language
+                    'en'  # Always English
                 )
                 
                 if analysis:
@@ -250,7 +264,7 @@ if st.button(analyze_label, type="primary", use_container_width=True):
                     analysis2 = analyze_contract(
                         st.session_state.contract2_text,
                         api_key,
-                        st.session_state.language
+                        'en'  # Always English
                     )
                     
                     if analysis2:
@@ -294,7 +308,7 @@ if st.button(analyze_label, type="primary", use_container_width=True):
                     st.session_state.analysis_results,
                     st.session_state.analysis2_results,
                     api_key,
-                    st.session_state.language
+                    'en'  # Always English
                 )
                 
                 st.session_state.comparison_results = comparison
@@ -309,7 +323,7 @@ if st.button(analyze_label, type="primary", use_container_width=True):
                 st.session_state.contract_text,
                 clause_type,
                 api_key if use_ai else None,
-                st.session_state.language
+                'en'  # Always English
             )
             
             st.session_state.clause_results = clause_result

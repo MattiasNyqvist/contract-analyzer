@@ -9,115 +9,107 @@ import streamlit as st
 from version import __version__, __author__, __license__
 
 
-def render_file_upload_section():
-    """Render file upload section in sidebar - NOW REMOVED."""
-    # File upload moved to main area
-    pass
-
-
-def render_settings_section():
-    """Render settings section in sidebar."""
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Settings")
+def render_mode_selector():
+    """Render main mode selector."""
+    st.sidebar.subheader("Analysis Mode")
     
-    # Language selection
-    language = st.sidebar.selectbox(
-        "Response Language",
-        options=['en', 'sv'],
-        format_func=lambda x: '🇬🇧 English' if x == 'en' else '🇸🇪 Swedish',
-        index=0,
-        help="Select language for AI analysis results"
-    )
-    
-    st.session_state.language = language
-    
-    # Number format
-    number_format = st.sidebar.radio(
-        "Number Format",
-        options=['swedish', 'international'],
-        format_func=lambda x: 'Swedish (10 000,50)' if x == 'swedish' else 'International (10,000.50)',
-        index=0,
-        help="Choose number formatting style"
-    )
-    
-    st.session_state.number_format = number_format
-
-
-def render_analysis_options():
-    """Render analysis options in sidebar."""
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Analysis Options")
-    
-    # Analysis type
-    analysis_type = st.sidebar.radio(
-        "Analysis Type",
-        options=['full', 'quick', 'specific'],
+    mode = st.sidebar.radio(
+        "What would you like to do?",
+        options=['single', 'comparison', 'clause'],
         format_func=lambda x: {
-            'full': 'Full Analysis',
-            'quick': 'Quick Summary',
-            'specific': 'Specific Clause'
+            'single': '📄 Analyze One Contract',
+            'comparison': '📊 Compare Two Contracts',
+            'clause': '🔍 Deep Dive: Specific Clause'
         }[x],
-        index=0
+        index=0,
+        help="Choose your analysis mode"
     )
     
-    # If specific clause selected, show clause type dropdown
-    clause_type = None
-    if analysis_type == 'specific':
-        from config.settings import CLAUSE_TYPES
-        
-        clause_type = st.sidebar.selectbox(
-            "Select Clause Type",
-            options=CLAUSE_TYPES,
-            index=0,
-            help="Choose which type of clause to analyze in detail"
-        )
-    
-    return analysis_type, clause_type
+    return mode
 
 
-def render_comparison_mode():
-    """Render comparison mode toggle."""
+def render_single_contract_options():
+    """Render options for single contract analysis."""
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Comparison Mode")
+    st.sidebar.markdown("**Analysis Detail**")
     
-    comparison_enabled = st.sidebar.checkbox(
-        "Compare Two Contracts",
-        value=st.session_state.get('comparison_mode', False),
-        help="Enable to compare two contracts side-by-side"
+    analysis_detail = st.sidebar.radio(
+        "Level of Detail",
+        options=['full', 'quick'],
+        format_func=lambda x: {
+            'full': 'Full Analysis (Comprehensive)',
+            'quick': 'Quick Summary (Fast)'
+        }[x],
+        index=0,
+        help="Choose analysis depth",
+        label_visibility="collapsed"
     )
     
-    st.session_state.comparison_mode = comparison_enabled
+    st.sidebar.info("💡 Upload one contract to get comprehensive risk analysis")
     
-    return comparison_enabled
+    return analysis_detail
+
+
+def render_clause_selector():
+    """Render clause type selector for deep dive mode."""
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Clause Selection**")
+    
+    from config.settings import CLAUSE_TYPES
+    
+    clause_type = st.sidebar.selectbox(
+        "Which clause to analyze?",
+        options=CLAUSE_TYPES,
+        index=0,
+        help="Select the specific clause type for deep analysis",
+        label_visibility="collapsed"
+    )
+    
+    st.sidebar.info(f"💡 Upload one contract to analyze the {clause_type} clause in detail")
+    
+    return clause_type
+
+
+def render_comparison_info():
+    """Render info for comparison mode."""
+    st.sidebar.markdown("---")
+    st.sidebar.info("💡 Upload two contracts to compare terms, risks, and clauses side-by-side")
 
 
 def render_footer():
     """Render footer in sidebar."""
     st.sidebar.markdown("---")
-    st.sidebar.markdown(f"**Version:** {__version__}")
+    st.sidebar.caption(f"**Version:** {__version__}")
     st.sidebar.caption(f"© 2025 {__author__}")
     st.sidebar.caption(f"{__license__} License")
 
 
 def render_sidebar():
-    """Render complete sidebar."""
-    # Settings
-    render_settings_section()
+    """Render complete sidebar with mode-based options."""
     
-    # Analysis options
-    analysis_type, clause_type = render_analysis_options()
+    # Main mode selector
+    mode = render_mode_selector()
     
-    # Comparison mode
-    comparison_mode = render_comparison_mode()
+    # Mode-specific options (directly under mode selector)
+    analysis_detail = None
+    clause_type = None
     
-    # Footer
+    if mode == 'single':
+        analysis_detail = render_single_contract_options()
+        
+    elif mode == 'comparison':
+        render_comparison_info()
+        
+    elif mode == 'clause':
+        clause_type = render_clause_selector()
+    
+    # Footer (at bottom)
     render_footer()
     
     return {
-        'uploaded_file': None,  # Not used anymore - uploads in main area
-        'analysis_type': analysis_type,
-        'clause_type': clause_type,
-        'comparison_mode': comparison_mode
+        'mode': mode,
+        'analysis_detail': analysis_detail,
+        'clause_type': clause_type
     }
 
 
@@ -126,25 +118,39 @@ def show_welcome():
     st.info("Upload a contract to begin analysis")
     
     st.markdown("### How It Works")
-    st.markdown("""
-    1. **Upload** - Upload your contract (PDF or DOCX)
-    2. **Analyze** - AI analyzes risks, clauses, and terms
-    3. **Review** - Get comprehensive risk assessment
-    4. **Export** - Download detailed report
-    """)
     
-    st.markdown("### Supported Contracts")
-    st.markdown("""
-    - Employment agreements
-    - Vendor contracts
-    - Non-disclosure agreements (NDAs)
-    - Service agreements
-    - Partnership agreements
-    - Lease agreements
-    - And more...
-    """)
+    col1, col2, col3 = st.columns(3)
     
-    st.markdown("### What We Check")
+    with col1:
+        st.markdown("#### 📄 Single Analysis")
+        st.markdown("""
+        - Upload one contract
+        - Get full risk assessment
+        - AI-powered insights
+        - Export detailed report
+        """)
+    
+    with col2:
+        st.markdown("#### 📊 Comparison")
+        st.markdown("""
+        - Upload two contracts
+        - Side-by-side comparison
+        - Identify differences
+        - Which is better?
+        """)
+    
+    with col3:
+        st.markdown("#### 🔍 Clause Deep Dive")
+        st.markdown("""
+        - Upload one contract
+        - Choose specific clause
+        - Detailed analysis
+        - Improvement tips
+        """)
+    
+    st.markdown("---")
+    
+    st.markdown("### What We Analyze")
     st.markdown("""
     **Risk Assessment:**
     - Payment terms and conditions

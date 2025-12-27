@@ -18,8 +18,8 @@ def get_analysis_prompt(contract_text: str, language: str = 'en') -> str:
     """
     
     lang_instruction = {
-        'en': 'Respond in English.',
-        'sv': 'Respond in Swedish.'
+        'en': 'IMPORTANT: Respond in English.',
+        'sv': 'VIKTIGT: Svara på svenska.'
     }
     
     return f"""You are an expert legal contract analyst. Analyze the following contract and provide a comprehensive risk assessment.
@@ -30,9 +30,15 @@ CONTRACT TEXT:
 Please provide your analysis in the following format:
 
 1. EXECUTIVE SUMMARY
-   - Brief overview of the contract (2-3 sentences)
-   - Contract type and parties involved
-   - Overall risk level (CRITICAL/HIGH/MEDIUM/LOW/MINIMAL)
+   Write a comprehensive 4-6 sentence summary covering:
+   - Contract type and purpose
+   - Parties involved (with their locations/jurisdictions if mentioned)
+   - Key financial terms (amounts, payment schedule, total value)
+   - Contract duration and key dates
+   - Main deliverables or obligations
+   - Overall risk level: CRITICAL/HIGH/MEDIUM/LOW/MINIMAL
+   
+   Make this summary detailed enough that someone can understand the contract's core elements without reading the full document.
 
 2. KEY TERMS
    - Payment terms and amounts
@@ -120,8 +126,8 @@ def get_comparison_prompt(contract1: str, contract2: str, language: str = 'en') 
     """
     
     lang_instruction = {
-        'en': 'Respond in English.',
-        'sv': 'Respond in Swedish.'
+        'en': 'IMPORTANT: Respond in English.',
+        'sv': 'VIKTIGT: Svara på svenska.'
     }
     
     return f"""Compare these two contracts and identify key differences.

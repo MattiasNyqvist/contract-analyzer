@@ -1,38 +1,40 @@
 """
-Display analysis results
+Results display components
 
 Copyright (c) 2025 Mattias Nyqvist
 Licensed under the MIT License
 """
 
 import streamlit as st
-from config.settings import RISK_LEVELS
-from utils.formatters import get_risk_color
 import plotly.graph_objects as go
+from config.settings import RISK_LEVELS
 
 
 def show_overall_risk_badge(risk_level: str):
-    """
-    Display overall risk level badge.
+    """Display overall risk level badge."""
+    risk_colors = {
+        'CRITICAL': '#dc2626',
+        'HIGH': '#ea580c',
+        'MEDIUM': '#f59e0b',
+        'LOW': '#059669',
+        'MINIMAL': '#0891b2'
+    }
     
-    Args:
-        risk_level: Risk level (CRITICAL/HIGH/MEDIUM/LOW/MINIMAL)
-    """
-    risk_info = RISK_LEVELS.get(risk_level.upper(), RISK_LEVELS['MEDIUM'])
+    color = risk_colors.get(risk_level, '#6b7280')
     
     st.markdown(
         f"""
         <div style="
-            background-color: {risk_info['color']};
+            background-color: {color};
             color: white;
-            padding: 15px 30px;
+            padding: 20px;
             border-radius: 10px;
             text-align: center;
             font-size: 24px;
             font-weight: bold;
             margin: 20px 0;
         ">
-            Overall Risk: {risk_info['label'].upper()}
+            Overall Risk: {risk_level} RISK
         </div>
         """,
         unsafe_allow_html=True
@@ -40,53 +42,52 @@ def show_overall_risk_badge(risk_level: str):
 
 
 def show_summary_section(analysis: dict):
-    """
-    Display executive summary.
-    
-    Args:
-        analysis: Analysis results dictionary
-    """
+    """Display executive summary."""
     st.markdown("## Executive Summary")
     
-    if analysis.get('summary'):
-        st.markdown(analysis['summary'])
+    summary = analysis.get('summary', '')
+    
+    if summary and len(summary) > 10:
+        # Use HTML paragraph for consistent formatting
+        st.markdown(
+            f"""
+            <div style="
+                font-size: 16px;
+                line-height: 1.6;
+                color: #1f2937;
+                background-color: #f9fafb;
+                padding: 20px;
+                border-radius: 8px;
+                border-left: 4px solid #3b82f6;
+            ">
+                {summary}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     else:
         st.info("No summary available")
 
 
 def show_key_metrics(analysis: dict):
-    """
-    Display key metrics.
-    
-    Args:
-        analysis: Analysis results dictionary
-    """
+    """Display key metrics."""
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        risk_count = len(analysis.get('risks', []))
-        st.metric("Risks Identified", risk_count)
+        st.metric("Risks Identified", len(analysis.get('risks', [])))
     
     with col2:
-        red_flags = len(analysis.get('red_flags', []))
-        st.metric("Red Flags", red_flags)
+        st.metric("Red Flags", len(analysis.get('red_flags', [])))
     
     with col3:
-        missing = len(analysis.get('missing_clauses', []))
-        st.metric("Missing Clauses", missing)
+        st.metric("Missing Clauses", len(analysis.get('missing_clauses', [])))
     
     with col4:
-        recommendations = len(analysis.get('recommendations', []))
-        st.metric("Recommendations", recommendations)
+        st.metric("Recommendations", len(analysis.get('recommendations', [])))
 
 
 def show_risk_breakdown(analysis: dict):
-    """
-    Display risk breakdown chart.
-    
-    Args:
-        analysis: Analysis results dictionary
-    """
+    """Display risk breakdown chart."""
     risks = analysis.get('risks', [])
     
     if not risks:
@@ -101,18 +102,26 @@ def show_risk_breakdown(analysis: dict):
     # Create pie chart
     labels = list(risk_counts.keys())
     values = list(risk_counts.values())
-    colors = [get_risk_color(level) for level in labels]
+    
+    colors = {
+        'CRITICAL': '#dc2626',
+        'HIGH': '#ea580c',
+        'MEDIUM': '#f59e0b',
+        'LOW': '#059669',
+        'MINIMAL': '#0891b2'
+    }
+    
+    chart_colors = [colors.get(label, '#6b7280') for label in labels]
     
     fig = go.Figure(data=[go.Pie(
         labels=labels,
         values=values,
-        marker=dict(colors=colors),
-        hole=0.4
+        marker=dict(colors=chart_colors),
+        hole=0.3
     )])
     
     fig.update_layout(
-        title="Risk Distribution by Level",
-        showlegend=True,
+        title="Risk Distribution",
         height=400
     )
     
@@ -120,13 +129,8 @@ def show_risk_breakdown(analysis: dict):
 
 
 def show_risks_section(analysis: dict):
-    """
-    Display detailed risks.
-    
-    Args:
-        analysis: Analysis results dictionary
-    """
-    st.markdown("## Risk Assessment")
+    """Display risks section."""
+    st.markdown("### Risk Assessment")
     
     risks = analysis.get('risks', [])
     
@@ -134,119 +138,78 @@ def show_risks_section(analysis: dict):
         st.info("No specific risks identified")
         return
     
-    # Group by risk level
-    risk_groups = {
-        'CRITICAL': [],
-        'HIGH': [],
-        'MEDIUM': [],
-        'LOW': [],
-        'MINIMAL': []
-    }
-    
+    # Group risks by level
+    risk_groups = {}
     for risk in risks:
         level = risk.get('level', 'MEDIUM')
+        if level not in risk_groups:
+            risk_groups[level] = []
         risk_groups[level].append(risk)
     
     # Display risks by level
-    for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'MINIMAL']:
-        level_risks = risk_groups[level]
-        if not level_risks:
-            continue
-        
-        risk_info = RISK_LEVELS[level]
-        
-        with st.expander(f"{risk_info['label']} ({len(level_risks)})", expanded=(level in ['CRITICAL', 'HIGH'])):
-            for i, risk in enumerate(level_risks, 1):
-                risk_text = risk.get('text', risk.get('description', 'No description'))
-                
-                st.markdown(
-                    f"""
-                    <div style="
-                        border-left: 4px solid {risk_info['color']};
-                        padding: 10px;
-                        margin: 10px 0;
-                        background-color: rgba(0,0,0,0.02);
-                    ">
-                        <strong>Risk #{i}</strong><br>
-                        {risk_text}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+    level_order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'MINIMAL']
+    
+    for level in level_order:
+        if level in risk_groups:
+            level_risks = risk_groups[level]
+            
+            with st.expander(f"{level} Risk ({len(level_risks)} items)", expanded=(level in ['CRITICAL', 'HIGH'])):
+                for risk in level_risks:
+                    st.markdown(f"**{risk.get('text', 'Unknown risk')}**")
+                    st.markdown("---")
 
 
 def show_red_flags_section(analysis: dict):
-    """
-    Display red flags.
+    """Display red flags."""
+    st.markdown("### Red Flags")
     
-    Args:
-        analysis: Analysis results dictionary
-    """
     red_flags = analysis.get('red_flags', [])
     
-    if not red_flags:
-        return
-    
-    st.markdown("## Red Flags")
-    
-    for flag in red_flags:
-        st.markdown(f"⚠️ {flag}")
+    if red_flags:
+        for flag in red_flags:
+            st.warning(f"⚠️ {flag}")
+    else:
+        st.info("No red flags identified")
 
 
 def show_missing_clauses_section(analysis: dict):
-    """
-    Display missing clauses.
+    """Display missing clauses."""
+    st.markdown("### Missing Clauses")
     
-    Args:
-        analysis: Analysis results dictionary
-    """
     missing = analysis.get('missing_clauses', [])
     
-    if not missing:
-        return
-    
-    st.markdown("## Missing Clauses")
-    
-    st.warning(f"Found {len(missing)} potentially missing important clause(s)")
-    
-    for clause in missing:
-        st.markdown(f"- {clause}")
+    if missing:
+        st.warning(f"Found {len(missing)} potentially missing important clause(s)")
+        for clause in missing:
+            st.markdown(f"- {clause}")
+    else:
+        st.success("All important clauses appear to be present")
 
 
 def show_recommendations_section(analysis: dict):
-    """
-    Display recommendations.
+    """Display recommendations."""
+    st.markdown("### Recommendations")
     
-    Args:
-        analysis: Analysis results dictionary
-    """
     recommendations = analysis.get('recommendations', [])
     
-    if not recommendations:
-        return
-    
-    st.markdown("## Recommendations")
-    
-    for i, rec in enumerate(recommendations, 1):
-        st.markdown(f"{i}. {rec}")
+    if recommendations:
+        for i, rec in enumerate(recommendations, 1):
+            st.markdown(f"{i}. {rec}")
+    else:
+        st.info("No specific recommendations available")
 
 
 def show_key_terms_section(analysis: dict):
-    """
-    Display key terms.
+    """Display key terms."""
+    st.markdown("### Key Terms")
     
-    Args:
-        analysis: Analysis results dictionary
-    """
     key_terms = analysis.get('key_terms', [])
     
-    if not key_terms:
-        return
-    
-    st.markdown("## Key Terms")
-    
-    for term in key_terms:
-        st.markdown(f"- {term}")
+    if key_terms:
+        for term in key_terms:
+            st.markdown(f"- {term}")
+    else:
+        st.info("No key terms extracted")
 
 
 def show_analysis(analysis: dict):
@@ -257,24 +220,29 @@ def show_analysis(analysis: dict):
         analysis: Analysis results dictionary
     """
     # Overall risk badge
-    show_overall_risk_badge(analysis.get('overall_risk', 'MEDIUM'))
+    show_overall_risk_badge(analysis.get('overall_risk', 'UNKNOWN'))
     
     # Key metrics
     show_key_metrics(analysis)
     
     st.markdown("---")
     
-    # Executive summary
+    # Summary
     show_summary_section(analysis)
     
     st.markdown("---")
     
-    # Create tabs for different sections
+    # Risk breakdown chart
+    show_risk_breakdown(analysis)
+    
+    st.markdown("---")
+    
+    # Tabs for detailed sections
     tab1, tab2, tab3, tab4 = st.tabs(["Risks", "Key Terms", "Missing Items", "Recommendations"])
     
     with tab1:
-        show_risk_breakdown(analysis)
         show_risks_section(analysis)
+        st.markdown("---")
         show_red_flags_section(analysis)
     
     with tab2:
@@ -285,19 +253,3 @@ def show_analysis(analysis: dict):
     
     with tab4:
         show_recommendations_section(analysis)
-
-
-def show_comparison_results(comparison: dict):
-    """
-    Display contract comparison results.
-    
-    Args:
-        comparison: Comparison results dictionary
-    """
-    st.markdown("## Contract Comparison")
-    
-    # Display comparison results
-    if comparison.get('analysis'):
-        st.markdown(comparison['analysis'])
-    else:
-        st.info("No comparison results available")

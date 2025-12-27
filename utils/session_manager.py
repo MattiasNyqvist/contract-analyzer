@@ -54,12 +54,10 @@ def init_session():
     if 'comparison_results' not in st.session_state:
         st.session_state.comparison_results = None
     
-    # User preferences
-    if 'language' not in st.session_state:
-        st.session_state.language = 'en'
-    
-    if 'number_format' not in st.session_state:
-        st.session_state.number_format = 'swedish'
+    # User preferences - ALWAYS ENGLISH
+    st.session_state.language = 'en'
+    st.session_state.number_format = 'international'
+
 
 def reset_analysis():
     """Reset analysis-related session state."""
@@ -68,7 +66,9 @@ def reset_analysis():
     st.session_state.contract_filename = None
     st.session_state.analysis_results = None
     st.session_state.analysis_complete = False
-    st.session_state.clause_results = None 
+    st.session_state.clause_results = None
+    
+    # Reset comparison
     st.session_state.contract1_file = None
     st.session_state.contract2_file = None
     st.session_state.contract2_text = None
@@ -76,6 +76,7 @@ def reset_analysis():
     st.session_state.analysis2_results = None
     st.session_state.comparison_results = None
     st.session_state.comparison_mode = False
+
 
 def reset_comparison():
     """Reset comparison-related session state."""
