@@ -26,6 +26,7 @@ from modules.contract_comparator import compare_contracts
 from modules.clause_finder import analyze_specific_clause
 from modules.report_builder import generate_text_report, generate_html_report
 from utils.validators import validate_contract_text, validate_api_key
+from modules.pdf_generator import generate_pdf_report
 
 # Load environment variables
 load_dotenv()
@@ -372,10 +373,10 @@ if st.session_state.get('analysis_complete'):
             # Single contract analysis
             show_analysis(st.session_state.analysis_results)
     
-    # Export section (only for full analysis, not clause-specific)
+# Export section (only for full analysis, not clause-specific)
     if analysis_type != 'specific':
         st.markdown("---")
-        st.subheader("Export Report")
+        st.subheader("📥 Export Report")
         
         col1, col2, col3 = st.columns(3)
         
@@ -390,7 +391,8 @@ if st.session_state.get('analysis_complete'):
                 data=text_report,
                 file_name=f"analysis_{st.session_state.contract_filename}.txt",
                 mime="text/plain",
-                use_container_width=True
+                use_container_width=True,
+                key="download_text_report"
             )
         
         with col2:
@@ -404,14 +406,29 @@ if st.session_state.get('analysis_complete'):
                 data=html_report,
                 file_name=f"analysis_{st.session_state.contract_filename}.html",
                 mime="text/html",
-                use_container_width=True
+                use_container_width=True,
+                key="download_html_report"
             )
         
         with col3:
+            # PDF report
             if comparison_mode and st.session_state.get('comparison_results'):
-                st.info("Comparison report coming soon")
+                st.info("💡 PDF export for comparison coming soon")
             else:
-                st.info("PDF export coming soon")
+                from modules.pdf_generator import generate_pdf_report
+                
+                pdf_report = generate_pdf_report(
+                    st.session_state.analysis_results,
+                    st.session_state.contract_filename
+                )
+                st.download_button(
+                    label="📑 Download PDF Report",
+                    data=pdf_report,
+                    file_name=f"analysis_{st.session_state.contract_filename}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_pdf_report"
+                )
     
     # New analysis button
     st.markdown("---")
